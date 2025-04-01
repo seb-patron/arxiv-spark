@@ -25,7 +25,16 @@ if [ "$(docker ps -a -q -f name=elasticsearch)" ]; then
 else
   # Run the Elasticsearch container
   echo "Creating and starting new Elasticsearch container..."
+  
+  # Use the network from the parent script if available
+  NETWORK_OPTION=""
+  if [ ! -z "${DOCKER_NETWORK_NAME}" ]; then
+    NETWORK_OPTION="--network ${DOCKER_NETWORK_NAME}"
+    echo "Using Docker network: ${DOCKER_NETWORK_NAME}"
+  fi
+  
   docker run -d --name elasticsearch \
+    ${NETWORK_OPTION} \
     -p 9200:9200 -p 9300:9300 \
     -e "discovery.type=single-node" \
     -e "xpack.security.enabled=false" \

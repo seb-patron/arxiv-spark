@@ -56,9 +56,16 @@ done
 if [ ! -f "requirements.txt" ]; then
   echo "# Python packages required for ML-Citation-Graph project" > requirements.txt
   echo "feedparser>=6.0.0" >> requirements.txt
+  echo "elasticsearch>=8.8.0" >> requirements.txt
   echo "# Add other required packages below" >> requirements.txt
   echo "Created requirements.txt with initial packages"
 else
+  # Make sure elasticsearch package is in requirements
+  if ! grep -q "^elasticsearch" requirements.txt; then
+    echo "elasticsearch>=8.8.0" >> requirements.txt
+    echo "Added elasticsearch package to requirements.txt"
+  fi
+  
   echo "Using existing requirements.txt file with these packages:"
   grep -v "^#" requirements.txt | grep -v "^$" | sed 's/^/  - /'
   echo ""
@@ -91,6 +98,14 @@ echo "Press Ctrl+C to stop the container when finished"
 echo "========================================================"
 echo ""
 
+# Prepare network option
+NETWORK_OPTION=""
+if [ ! -z "${DOCKER_NETWORK_NAME}" ]; then
+  NETWORK_OPTION="--network ${DOCKER_NETWORK_NAME}"
+  echo "Using Docker network: ${DOCKER_NETWORK_NAME}"
+  echo "Elasticsearch will be accessible at hostname 'elasticsearch' from within the container"
+fi
+
 # Ask which option to use
 echo "Choose an option:"
 echo "1) Use jupyter/all-spark-notebook (simplest option)"
@@ -115,6 +130,8 @@ if [ "$option_choice" = "1" ]; then
   echo "Starting the container..."
   echo "Installing packages from requirements.txt..."
   docker run -it --rm \
+    --name jupyter-spark \
+    ${NETWORK_OPTION} \
     -p 8888:8888 \
     -v "$PWD":/home/jovyan/work \
     --entrypoint /bin/bash $IMAGE -c "pip install --quiet -r /home/jovyan/work/requirements.txt && start.sh jupyter lab"
@@ -154,6 +171,8 @@ RUN pip install --quiet -r /tmp/requirements.txt\\
   # Run the custom container
   echo "Starting the container with custom image..."
   docker run -it --rm \
+    --name jupyter-spark \
+    ${NETWORK_OPTION} \
     -p 8888:8888 \
     -v "$PWD":/home/jovyan/work \
     spark-scala-notebook
@@ -172,6 +191,8 @@ elif [ "$option_choice" = "3" ]; then
   echo "Starting the container..."
   echo "Installing packages from requirements.txt..."
   docker run -it --rm \
+    --name jupyter-spark \
+    ${NETWORK_OPTION} \
     -p 8888:8888 \
     -v "$PWD":/home/jovyan/work \
     --entrypoint /bin/bash $IMAGE -c "pip install --quiet -r /home/jovyan/work/requirements.txt && /usr/local/bin/start.sh jupyter lab"
@@ -188,6 +209,8 @@ else
   echo "Starting the container..."
   echo "Installing packages from requirements.txt..."
   docker run -it --rm \
+    --name jupyter-spark \
+    ${NETWORK_OPTION} \
     -p 8888:8888 \
     -v "$PWD":/home/jovyan/work \
     --entrypoint /bin/bash $IMAGE -c "pip install --quiet -r /home/jovyan/work/requirements.txt && start.sh jupyter lab"

@@ -143,6 +143,70 @@ If a kernel isn't showing up in Jupyter Lab:
 2. Run: `jupyter kernelspec list` to see available kernels
 3. If needed, install the appropriate kernel
 
+## Using Elasticsearch with Spark
+
+This project includes support for using Elasticsearch with Apache Spark. The setup creates a custom Docker network to allow the Spark and Elasticsearch containers to communicate with each other.
+
+### Starting the Containers
+
+To start both Elasticsearch and Jupyter/Spark containers with proper networking:
+
+```bash
+./start-containers.sh
+```
+
+This script:
+1. Creates a custom Docker network called `arxiv-elastic-net`
+2. Starts the Elasticsearch container connected to this network
+3. Starts the Jupyter/Spark container connected to the same network
+
+### Connecting to Elasticsearch from Jupyter/Spark
+
+When using the Elasticsearch connector in your notebooks, use the following configuration:
+
+```python
+# Python example using Spark-Elasticsearch connector
+es_write_conf = {
+    "es.nodes": "elasticsearch",  # Use container name as hostname
+    "es.port": "9200",
+    "es.resource": "your_index/doc",
+    "es.nodes.wan.only": "true"
+}
+
+# Write DataFrame to Elasticsearch
+df.write.format("org.elasticsearch.spark.sql").options(**es_write_conf).mode("append").save()
+```
+
+### Testing the Connection
+
+To verify that the Jupyter container can connect to Elasticsearch, run the following code in a notebook:
+
+```python
+import requests
+response = requests.get("http://elasticsearch:9200")
+print(response.json())
+```
+
+### Troubleshooting
+
+If you encounter connectivity issues:
+
+1. Make sure both containers are running on the same network:
+   ```bash
+   docker network inspect arxiv-elastic-net
+   ```
+
+2. Check that Elasticsearch is running:
+   ```bash
+   curl http://localhost:9200
+   ```
+
+3. Check the container IP addresses:
+   ```bash
+   docker inspect elasticsearch | grep IPAddress
+   docker inspect jupyter-spark | grep IPAddress
+   ```
+
 ## Project Structure
 
 When starting a new Spark project, consider organizing your files like this:
