@@ -22,6 +22,18 @@ if [ "$(docker ps -a -q -f name=elasticsearch)" ]; then
     echo "Starting existing Elasticsearch container..."
     docker start elasticsearch
   fi
+  
+  # Make sure container is connected to the network (regardless if it was just started or already running)
+  if [ ! -z "${DOCKER_NETWORK_NAME}" ]; then
+    # Check if already connected to the network
+    if ! docker network inspect ${DOCKER_NETWORK_NAME} | grep -q "\"Name\": \"elasticsearch\""; then
+      echo "Connecting Elasticsearch container to network ${DOCKER_NETWORK_NAME}..."
+      docker network connect ${DOCKER_NETWORK_NAME} elasticsearch
+    else
+      echo "Elasticsearch container is already connected to network ${DOCKER_NETWORK_NAME}"
+    fi
+  fi
+  
 else
   # Run the Elasticsearch container
   echo "Creating and starting new Elasticsearch container..."
@@ -43,4 +55,7 @@ fi
 
 echo ""
 echo "Elasticsearch should be accessible at: http://localhost:9200"
+if [ ! -z "${DOCKER_NETWORK_NAME}" ]; then
+  echo "From other containers on network ${DOCKER_NETWORK_NAME}, Elasticsearch is accessible at: elasticsearch:9200"
+fi
 echo "========================================================" 

@@ -36,6 +36,32 @@ echo "Starting Spark Notebook container..."
 
 echo ""
 echo "========================================================"
+
+# Verify network connectivity (ensure both containers are on the network)
+echo "Verifying network setup..."
+if docker ps | grep -q "elasticsearch" && docker ps | grep -q "jupyter-spark"; then
+  # Both containers are running, now check if they're on the network
+  if ! docker network inspect arxiv-elastic-net | grep -q "\"Name\": \"elasticsearch\""; then
+    echo "Warning: Elasticsearch container is not on the network. Connecting it now..."
+    docker network connect arxiv-elastic-net elasticsearch
+  fi
+  
+  if ! docker network inspect arxiv-elastic-net | grep -q "\"Name\": \"jupyter-spark\""; then
+    echo "Warning: Jupyter Spark container is not on the network. Connecting it now..."
+    docker network connect arxiv-elastic-net jupyter-spark
+  fi
+  
+  # Test connection from Jupyter to Elasticsearch
+  echo "Testing connection from Jupyter to Elasticsearch..."
+  if docker exec -it jupyter-spark curl -s elasticsearch:9200 > /dev/null; then
+    echo "✅ Connection test successful! Containers can communicate with each other."
+  else
+    echo "❌ Connection test failed. Please check your Docker network configuration."
+  fi
+else
+  echo "One or both containers are not running. Cannot verify network setup."
+fi
+
 echo "  All containers should now be running"
 echo "  - Elasticsearch: http://localhost:9200"
 echo "  - Jupyter Notebook: http://localhost:8888"
