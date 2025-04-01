@@ -1,0 +1,2 @@
+# Python packages required for ML-Citation-Graph project
+feedparser>=6.0.0
