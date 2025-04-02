@@ -1,16 +1,15 @@
 # arXiv Data Analysis with Spark and Elasticsearch
 
-This project provides tools and infrastructure for analyzing arXiv scientific papers using Apache Spark and Elasticsearch. It serves as a platform for exploring the rich dataset of academic papers, their metadata, and citation networks available through arXiv.
+This project demonstrates how to analyze and search the arXiv academic paper dataset using Apache Spark for distributed data processing and Elasticsearch for search capabilities. The project implements several data processing workflows to analyze, classify, and search arXiv papers.
 
-## About the Project
+## Project Overview
 
-The arXiv-Elasticsearch project allows researchers and data scientists to:
+The arXiv dataset contains metadata for over 2.6 million scientific papers, including titles, abstracts, authors, categories, and more. This project provides a set of Jupyter notebooks that demonstrate:
 
-- Work with large-scale arXiv metadata and full-text data
-- Build and analyze citation networks between papers
-- Index papers for efficient search and retrieval
-- Apply machine learning and NLP techniques to academic content
-- Visualize relationships between papers, authors, and research domains
+1. Text processing and analysis of academic papers
+2. Citation network analysis
+3. Building machine learning models for paper classification and clustering
+4. Creating a powerful search engine for academic papers using Elasticsearch
 
 ## Getting Started
 
@@ -18,7 +17,7 @@ The arXiv-Elasticsearch project allows researchers and data scientists to:
 
 - Docker and Docker Compose
 - At least 8GB of RAM allocated to Docker
-- Approximately 5GB of disk space for Elasticsearch and container images
+- Approximately 5GB of disk space for Elasticsearch
 
 ### Starting the Environment
 
@@ -45,35 +44,93 @@ Or launch just the Jupyter notebook environment:
 ./start-spark-notebook.sh
 ```
 
-## Current Notebooks
+## Technologies Used
 
-The repository currently includes these example notebooks, with more to be added:
-
-- **index-papers-with-refs-to-elasticsearch-Copy1.ipynb**: One approach to indexing arXiv papers with citation information
-- **preprocess-references.ipynb**: Preprocessing pipeline for arXiv reference data
-- **arxiv-k-means.ipynb**: Experimental clustering of papers using k-means
+- **Apache Spark**: For distributed data processing and machine learning
+- **Elasticsearch**: For building a scalable search engine
+- **PySpark**: For data transformation and ML pipelines
+- **Docker**: For containerization and deployment
+- **Jupyter Notebooks**: For interactive analysis and visualization
 
 ## Data
 
-This project works with arXiv metadata and references. The data files are not included in the repository due to their size but can be downloaded from:
-- [arXiv Metadata](https://www.kaggle.com/datasets/Cornell-University/arxiv) - Comprehensive metadata for arXiv papers
-- Citation networks can be extracted from paper PDFs using the preprocessing notebooks
+The data files are not included in this repository. You can download them from these sources:
+
+1. **arXiv Metadata**: Available on [Kaggle](https://www.kaggle.com/Cornell-University/arxiv)
+2. **Citation Network Data**: Available from [Matt Bierbaum's arXiv public datasets](https://github.com/mattbierbaum/arxiv-public-datasets/releases/tag/v0.2.0)
+
+Place the data files in the `data/` directory before running the notebooks.
+
+## Current Notebooks
+
+### 1. [preprocess-references.ipynb](notebooks/preprocess-references.ipynb)
+
+A notebook focused on processing citation data from arXiv papers. It includes:
+
+- Loading and examining the JSON structure of internal references data
+- Converting the reference data to a more usable DataFrame format
+- Exporting the processed citation network to Parquet format for efficient storage and retrieval
+- Creating a clean, structured dataset for citation network analysis
+
+### 2. [index-papers-with-refs-to-elasticsearch.ipynb](notebooks/index-papers-with-refs-to-elasticsearch.ipynb)
+
+This notebook demonstrates how to process and index arXiv academic papers along with their citation networks into Elasticsearch. It includes:
+
+- Loading and cleaning arXiv metadata (2.6+ million papers)
+- Normalizing text fields and transforming categories into arrays
+- Integrating citation network data to enhance paper metadata with citation information
+- Text processing including tokenization and TF-IDF calculation
+- Creating custom Elasticsearch mappings and analyzers for optimal search performance
+- Building document similarity features using text vectorization
+- Enabling complex queries that combine content similarity with citation network analysis
+- Demonstrating bulk indexing optimizations for performance with millions of documents
+
+### 3. [arxiv-supervised-classification.ipynb](notebooks/arxiv-supervised-classification.ipynb)
+
+This notebook applies supervised machine learning techniques to classify arXiv papers based on title and abstract text. Key features include:
+
+- Using PySpark's ML library for text processing and classification
+- Implementing TF-IDF vectorization to transform text into numerical features
+- Training a multinomial logistic regression model for multi-class classification
+- Achieving approximately 62% accuracy across 100+ scientific categories
+- Analyzing per-category performance with some categories (Computer Vision, Quantum Physics) showing strong accuracy (80-89%)
+- Discussing limitations of single-label classification and suggesting multi-label approaches for future work
+
+### 4. [arxiv-k-means.ipynb](notebooks/arxiv-k-means.ipynb)
+
+This notebook explores unsupervised learning to discover clusters in the arXiv paper corpus. It covers:
+
+- Applying K-means clustering to identify natural groupings in research papers
+- Using TF-IDF vectorization and dimensionality reduction techniques
+- Evaluating optimal clusters using the Elbow Method and silhouette scores
+- Identifying limitations of K-means for academic papers (weak cluster separation, fuzzy boundaries)
+- Comparing K-means with Latent Dirichlet Allocation (LDA) for topic modeling
+- Implementing LDA to discover thematic topics across research papers
+- Demonstrating how to integrate discovered topics into Elasticsearch for enhanced search capabilities
 
 ## Working with Elasticsearch
 
-When using the Elasticsearch connector in your notebooks, use the following configuration:
+To connect to Elasticsearch from your notebooks, use the following configuration:
 
 ```python
-# Python example using Spark-Elasticsearch connector
-es_write_conf = {
-    "es.nodes": "elasticsearch",  # Use container name as hostname
-    "es.port": "9200",
-    "es.resource": "your_index",
-    "es.nodes.wan.only": "true"
-}
+from pyspark.sql import SparkSession
 
-# Write DataFrame to Elasticsearch
-df.write.format("org.elasticsearch.spark.sql").options(**es_write_conf).mode("append").save()
+spark = SparkSession.builder \
+    .appName("Arxiv-Index-into-Elasticsearch") \
+    .master("local[*]") \
+    .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:8.8.2") \
+    .getOrCreate()
+
+# To write to Elasticsearch
+df.write \
+    .format("org.elasticsearch.spark.sql") \
+    .option("es.nodes", "elasticsearch") \
+    .option("es.port", "9200") \
+    .option("es.resource", "index_name") \
+    .option("es.mapping.id", "id") \
+    .option("es.write.operation", "upsert") \
+    .mode("append") \
+    .save()
 ```
 
 ### Testing the Connection
@@ -88,19 +145,17 @@ print(response.json())
 
 ## Troubleshooting
 
-If you encounter connectivity issues:
+If you encounter connection issues between containers, try these solutions:
 
-1. Make sure both containers are running on the same network:
+1. Verify that all services are running with `docker-compose ps`
+2. Check Elasticsearch logs with `docker-compose logs elasticsearch`
+3. Ensure that the Elasticsearch service is healthy before attempting connections
+4. If using Docker Desktop, allocate sufficient memory (at least 4GB)
+5. Make sure both containers are running on the same network:
    ```bash
    docker network inspect arxiv-elastic-net
    ```
-
-2. Check that Elasticsearch is running:
-   ```bash
-   curl http://localhost:9200
-   ```
-
-3. Check the container IP addresses:
+6. Check the container IP addresses:
    ```bash
    docker inspect elasticsearch | grep IPAddress
    docker inspect jupyter-spark | grep IPAddress
